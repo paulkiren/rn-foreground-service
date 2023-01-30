@@ -2,7 +2,7 @@
 
 Modified by kirenpaul to suit internal needs
 
-
+>> Documentation has been moved to https://rn-foreground.vercel.app/
 > A foreground service with headless task that can manage multiple headless tasks execution at the same time and handle interactions. 🎉
 
 _Looking for a contributors._
