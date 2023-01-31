@@ -128,6 +128,7 @@ declare const ReactNativeForegroundService: {
   remove_all_tasks: () => {};
   get_task: (taskId: any) => any;
   get_all_tasks: () => {};
+  cancel_notification: (id: any) => void;
   eventListener: (callBack: any) => () => void;
 };
 export default ReactNativeForegroundService;
