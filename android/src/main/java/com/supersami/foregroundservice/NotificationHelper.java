@@ -14,6 +14,8 @@ import android.os.Bundle;
 import androidx.core.app.NotificationCompat;
 import android.util.Log;
 import com.facebook.react.R;
+import android.Manifest;
+import android.content.pm.PackageManager;
 
 
 // partially took ideas from: https://github.com/zo0r/react-native-push-notification/blob/master/android/src/main/java/com/dieam/reactnativepushnotification/modules/RNPushNotificationHelper.java
@@ -43,6 +45,12 @@ class NotificationHelper {
         this.config = new NotificationConfig(context);
     }
 
+    public static boolean hasNotificationPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
 
     Notification buildNotification(Context context, Bundle bundle) {
         if (bundle == null) {
@@ -60,8 +68,8 @@ class NotificationHelper {
         notificationIntent.putExtra("mainOnPress",bundle.getString("mainOnPress"));
         int uniqueInt1 = (int) (System.currentTimeMillis() & 0xfffffff);
 
-        // Changing FLAG_UPDATE_CURRENT to FLAG_MUTABLE for android 12 support
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, uniqueInt1, notificationIntent, PendingIntent.FLAG_MUTABLE);
+        // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, uniqueInt1, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         if(bundle.getBoolean("button", false) == true) {
             Log.d("SuperLog C ", "inButtonOnPress" + bundle.getString("buttonOnPress"));
@@ -69,8 +77,8 @@ class NotificationHelper {
             notificationBtnIntent.putExtra("buttonOnPress", bundle.getString("buttonOnPress"));
             int uniqueInt = (int) (System.currentTimeMillis() & 0xfffffff);
 
-             // Changing FLAG_UPDATE_CURRENT to FLAG_MUTABLE for android 12 support
-            pendingBtnIntent = PendingIntent.getActivity(context, uniqueInt, notificationBtnIntent, PendingIntent.FLAG_MUTABLE);
+             // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
+            pendingBtnIntent = PendingIntent.getActivity(context, uniqueInt, notificationBtnIntent, PendingIntent.FLAG_IMMUTABLE);
         }
 
         if(bundle.getBoolean("button2", false) == true) {
@@ -79,8 +87,8 @@ class NotificationHelper {
             notificationBtn2Intent.putExtra("button2OnPress", bundle.getString("button2OnPress"));
             int uniqueInt2 = (int) (System.currentTimeMillis() & 0xfffffff);
 
-            // Changing FLAG_UPDATE_CURRENT to FLAG_MUTABLE for android 12 support
-            pendingBtn2Intent = PendingIntent.getActivity(context, uniqueInt2, notificationBtn2Intent, PendingIntent.FLAG_MUTABLE);
+            // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
+            pendingBtn2Intent = PendingIntent.getActivity(context, uniqueInt2, notificationBtn2Intent, PendingIntent.FLAG_IMMUTABLE);
         }
 
         String title = bundle.getString("title");

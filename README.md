@@ -184,3 +184,14 @@ ReactNativeForegroundService.start({
 ## License
 
 MIT © [rajaosama](https://github.com/raja0sama)
+
+<!-- 
+To upgrade the service to comply with the latest Google Play Store policies and support a wide variety of Android versions, we need to address several key areas:
+
+Foreground Service Restrictions: Ensure the service uses a foreground notification and adheres to Android 12+ restrictions.
+PendingIntent Mutability: Use FLAG_IMMUTABLE or FLAG_MUTABLE for PendingIntent to comply with Android 12+.
+Background Execution Limits: Handle background execution limits introduced in Android 8.0 (Oreo) and later.
+Notification Channels: Ensure proper use of notification channels for Android 8.0+.
+Permissions: Add runtime permission checks for features requiring sensitive permissions.
+Battery Optimization: Handle battery optimization restrictions for long-running services.
+Below are the necessary changes grouped by file: -->

@@ -2,6 +2,7 @@ package com.supersami.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Bundle;
@@ -78,6 +79,14 @@ public class ForegroundService extends Service {
             Notification notification = NotificationHelper
                 .getInstance(getApplicationContext())
                 .buildNotification(getApplicationContext(), notificationConfig);
+
+            // Ensure the service starts in the foreground
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (!NotificationHelper.hasNotificationPermission(this)) {
+                    Log.e("ForegroundService", "Notification permission is required for Android 12+.");
+                    return false;
+                }
+            }
 
             startForeground(id, notification);
 
@@ -225,6 +234,12 @@ public class ForegroundService extends Service {
                 stopSelf();
                 return START_NOT_STICKY;
             }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
         }
 
         // service to restart automatically if it's killed

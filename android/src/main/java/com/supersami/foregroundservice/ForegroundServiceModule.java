@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.app.NotificationManager;
 import android.os.Build;
 import android.util.Log;
+import android.Manifest;
+import android.content.pm.PackageManager;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -248,6 +250,17 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         }
 
         promise.resolve(res);
+    }
+
+    @ReactMethod
+    public void requestNotificationPermission(Promise promise) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (reactContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                promise.reject(ERROR_INVALID_CONFIG, "Notification permission is required.");
+                return;
+            }
+        }
+        promise.resolve(null);
     }
 
 }
