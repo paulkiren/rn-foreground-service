@@ -121,134 +121,138 @@ public class ForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null || intent.getAction() == null) {
+            Log.e("ForegroundService", "Invalid intent or action.");
+            return START_NOT_STICKY;
+        }
+
         String action = intent.getAction();
+        Bundle extras = intent.getExtras();
 
-        /**
-        From the docs:
-        Every call to this method will result in a corresponding call to the target service's
-        Service.onStartCommand(Intent, int, int) method, with the intent given here.
-        This provides a convenient way to submit jobs to a service without having to bind and call on to its interface.
-        */
+        switch (action) {
+            case Constants.ACTION_FOREGROUND_SERVICE_START:
+                handleStartService(extras);
+                break;
 
-        //Log.d("ForegroundService", "onStartCommand flags: " + String.valueOf(flags) + "  " + String.valueOf(startId));
+            case Constants.ACTION_UPDATE_NOTIFICATION:
+                handleUpdateNotification(extras);
+                break;
 
-        if (action != null) {
-            if (action.equals(Constants.ACTION_FOREGROUND_SERVICE_START)) {
-                if (intent.getExtras() != null && intent.getExtras().containsKey(NOTIFICATION_CONFIG)) {
-                    Bundle notificationConfig = intent.getExtras().getBundle(NOTIFICATION_CONFIG);
+            case Constants.ACTION_FOREGROUND_RUN_TASK:
+                handleRunTask(extras);
+                break;
 
-                    startService(notificationConfig);
+            case Constants.ACTION_FOREGROUND_SERVICE_STOP:
+                handleStopService();
+                break;
 
-                }
-            }
+            case Constants.ACTION_FOREGROUND_SERVICE_STOP_ALL:
+                handleStopAllServices();
+                break;
 
-            if (action.equals(Constants.ACTION_UPDATE_NOTIFICATION)) {
-                if (intent.getExtras() != null && intent.getExtras().containsKey(NOTIFICATION_CONFIG)) {
-                    Bundle notificationConfig = intent.getExtras().getBundle(NOTIFICATION_CONFIG);
-
-                    if(running <= 0){
-                        Log.d("ForegroundService", "Update Notification called without a running service, trying to restart service.");
-                        startService(notificationConfig);
-                    }
-                    else{
-
-                        try {
-                            int id = (int)notificationConfig.getDouble("id");
-
-                            Notification notification = NotificationHelper
-                                .getInstance(getApplicationContext())
-                                .buildNotification(getApplicationContext(), notificationConfig);
-
-                            NotificationManager mNotificationManager=(NotificationManager)getSystemService(getApplicationContext().NOTIFICATION_SERVICE);
-                            mNotificationManager.notify(id, notification);
-
-                            lastNotificationConfig = notificationConfig;
-
-                        }
-                        catch (Exception e) {
-                            Log.e("ForegroundService", "Failed to update notification: " + e.getMessage());
-                        }
-                    }
-
-                }
-            }
-
-            else if (action.equals(Constants.ACTION_FOREGROUND_RUN_TASK)){
-                if(running <= 0 && lastNotificationConfig == null){
-                    Log.e("ForegroundService", "Service is not running to run tasks.");
-                    stopSelf();
-                    return START_NOT_STICKY;
-                }
-                else{
-
-                    // try to re-start service if it was killed
-                    if(running <= 0){
-                        Log.d("ForegroundService", "Run Task called without a running service, trying to restart service.");
-                        if(!startService(lastNotificationConfig)){
-                            Log.e("ForegroundService", "Service is not running to run tasks.");
-                            return START_REDELIVER_INTENT;
-                        }
-                    }
-
-                    if (intent.getExtras() != null && intent.getExtras().containsKey(TASK_CONFIG)) {
-                        taskConfig = intent.getExtras().getBundle(TASK_CONFIG);
-
-                        try {
-
-                             if( taskConfig.getBoolean("onLoop") == true) {
-                                 this.handler.post(this.runnableCode);
-                             }else{
-                                 this.runHeadlessTask(taskConfig);
-                             }
-
-
-                        }
-                        catch (Exception e) {
-                            Log.e("ForegroundService", "Failed to start task: " + e.getMessage());
-                        }
-                    }
-                }
-            }
-
-            else if (action.equals(Constants.ACTION_FOREGROUND_SERVICE_STOP)) {
-                if(running > 0){
-                    running -= 1;
-
-                    if (running == 0){
-                        stopSelf();
-                        lastNotificationConfig = null;
-                    }
-                }
-                else{
-                    Log.d("ForegroundService", "Service is not running to stop.");
-                    stopSelf();
-                    lastNotificationConfig = null;
-                }
-                return START_NOT_STICKY;
-
-            }
-            else if (action.equals(Constants.ACTION_FOREGROUND_SERVICE_STOP_ALL)) {
-                running = 0;
-                mInstance = null;
-                lastNotificationConfig = null;
-                stopSelf();
-                return START_NOT_STICKY;
-            }
+            default:
+                Log.e("ForegroundService", "Unknown action: " + action);
+                break;
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent);
-        } else {
-            startService(intent);
-        }
-
-        // service to restart automatically if it's killed
         return START_REDELIVER_INTENT;
-
     }
 
+    private void handleStartService(Bundle extras) {
+        if (extras == null || !extras.containsKey(NOTIFICATION_CONFIG)) {
+            Log.e("ForegroundService", "Missing notification config.");
+            return;
+        }
 
-    
+        Bundle notificationConfig = extras.getBundle(NOTIFICATION_CONFIG);
+        startService(notificationConfig);
+    }
+
+    private void handleUpdateNotification(Bundle extras) {
+        if (extras == null || !extras.containsKey(NOTIFICATION_CONFIG)) {
+            Log.e("ForegroundService", "Missing notification config for update.");
+            return;
+        }
+
+        Bundle notificationConfig = extras.getBundle(NOTIFICATION_CONFIG);
+
+        if (running <= 0) {
+            Log.d("ForegroundService", "Service not running, restarting with new notification.");
+            startService(notificationConfig);
+        } else {
+            updateNotification(notificationConfig);
+        }
+    }
+
+    private void handleRunTask(Bundle extras) {
+        if (running <= 0 && lastNotificationConfig == null) {
+            Log.e("ForegroundService", "Service not running to execute tasks.");
+            stopSelf();
+            return;
+        }
+
+        if (running <= 0) {
+            Log.d("ForegroundService", "Restarting service for task execution.");
+            if (!startService(lastNotificationConfig)) {
+                Log.e("ForegroundService", "Failed to restart service for task execution.");
+                return;
+            }
+        }
+
+        if (extras != null && extras.containsKey(TASK_CONFIG)) {
+            taskConfig = extras.getBundle(TASK_CONFIG);
+            executeTask(taskConfig);
+        }
+    }
+
+    private void executeTask(Bundle taskConfig) {
+        try {
+            if (taskConfig.getBoolean("onLoop", false)) {
+                handler.post(runnableCode);
+            } else {
+                runHeadlessTask(taskConfig);
+            }
+        } catch (Exception e) {
+            Log.e("ForegroundService", "Failed to execute task: " + e.getMessage());
+        }
+    }
+
+    private void handleStopService() {
+        if (running > 0) {
+            running--;
+            if (running == 0) {
+                stopSelf();
+                lastNotificationConfig = null;
+            }
+        } else {
+            Log.d("ForegroundService", "Service not running to stop.");
+            stopSelf();
+            lastNotificationConfig = null;
+        }
+    }
+
+    private void handleStopAllServices() {
+        running = 0;
+        mInstance = null;
+        lastNotificationConfig = null;
+        stopSelf();
+    }
+
+    private void updateNotification(Bundle notificationConfig) {
+        try {
+            int id = (int) notificationConfig.getDouble("id");
+            Notification notification = NotificationHelper
+                .getInstance(getApplicationContext())
+                .buildNotification(getApplicationContext(), notificationConfig);
+
+            NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            notificationManager.notify(id, notification);
+
+            lastNotificationConfig = notificationConfig;
+        } catch (Exception e) {
+            Log.e("ForegroundService", "Failed to update notification: " + e.getMessage());
+        }
+    }
 
     public void runHeadlessTask(Bundle bundle){
         final Intent service = new Intent(getApplicationContext(), ForegroundServiceTask.class);

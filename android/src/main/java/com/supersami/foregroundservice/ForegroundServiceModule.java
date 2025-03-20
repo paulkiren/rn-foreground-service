@@ -45,6 +45,12 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         return res > 0;
     }
 
+    private boolean hasNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return reactContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
 
     @ReactMethod
     public void startService(ReadableMap notificationConfig, Promise promise) {
@@ -254,11 +260,9 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void requestNotificationPermission(Promise promise) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (reactContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                promise.reject(ERROR_INVALID_CONFIG, "Notification permission is required.");
-                return;
-            }
+        if (!hasNotificationPermission()) {
+            promise.reject(ERROR_INVALID_CONFIG, "Notification permission is required.");
+            return;
         }
         promise.resolve(null);
     }

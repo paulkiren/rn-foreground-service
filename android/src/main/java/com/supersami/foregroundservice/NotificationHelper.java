@@ -52,6 +52,11 @@ class NotificationHelper {
         return true;
     }
 
+    private PendingIntent createPendingIntent(Context context, Intent intent) {
+        int uniqueInt = (int) (System.currentTimeMillis() & 0xfffffff);
+        return PendingIntent.getActivity(context, uniqueInt, intent, PendingIntent.FLAG_IMMUTABLE);
+    }
+
     Notification buildNotification(Context context, Bundle bundle) {
         if (bundle == null) {
             Log.e("NotificationHelper", "buildNotification: invalid config");
@@ -66,29 +71,21 @@ class NotificationHelper {
 
         Intent notificationIntent = new Intent(context, mainActivityClass);
         notificationIntent.putExtra("mainOnPress",bundle.getString("mainOnPress"));
-        int uniqueInt1 = (int) (System.currentTimeMillis() & 0xfffffff);
 
-        // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, uniqueInt1, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pendingIntent = createPendingIntent(context, notificationIntent);
 
-        if(bundle.getBoolean("button", false) == true) {
+        if (bundle.getBoolean("button", false)) {
             Log.d("SuperLog C ", "inButtonOnPress" + bundle.getString("buttonOnPress"));
             Intent notificationBtnIntent = new Intent(context, mainActivityClass);
             notificationBtnIntent.putExtra("buttonOnPress", bundle.getString("buttonOnPress"));
-            int uniqueInt = (int) (System.currentTimeMillis() & 0xfffffff);
-
-             // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
-            pendingBtnIntent = PendingIntent.getActivity(context, uniqueInt, notificationBtnIntent, PendingIntent.FLAG_IMMUTABLE);
+            pendingBtnIntent = createPendingIntent(context, notificationBtnIntent);
         }
 
-        if(bundle.getBoolean("button2", false) == true) {
+        if (bundle.getBoolean("button2", false)) {
             Log.i("SuperLog C ", "inButton2OnPress" + bundle.getString("button2OnPress"));
             Intent notificationBtn2Intent = new Intent(context, mainActivityClass);
             notificationBtn2Intent.putExtra("button2OnPress", bundle.getString("button2OnPress"));
-            int uniqueInt2 = (int) (System.currentTimeMillis() & 0xfffffff);
-
-            // Changing FLAG_UPDATE_CURRENT to FLAG_IMMUTABLE for android 12 support
-            pendingBtn2Intent = PendingIntent.getActivity(context, uniqueInt2, notificationBtn2Intent, PendingIntent.FLAG_IMMUTABLE);
+            pendingBtn2Intent = createPendingIntent(context, notificationBtn2Intent);
         }
 
         String title = bundle.getString("title");
