@@ -1,4 +1,4 @@
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -18,13 +18,13 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 
-import static com.supersami.foregroundservice.ForegroundService.NOTIFICATION_CONFIG;
-import static com.supersami.foregroundservice.ForegroundService.TASK_CONFIG;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_START;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_UPDATE_NOTIFICATION;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP_ALL;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_RUN_TASK;
+import static com.paulkiren.foregroundservice.ForegroundService.NOTIFICATION_CONFIG;
+import static com.paulkiren.foregroundservice.ForegroundService.TASK_CONFIG;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_START;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_UPDATE_NOTIFICATION;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP_ALL;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_RUN_TASK;
 
 @ReactModule(name = ForegroundServiceModule.NAME)
 public class ForegroundServiceModule extends ReactContextBaseJavaModule {

@@ -1,4 +1,4 @@
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -23,7 +23,7 @@ import android.content.pm.PackageManager;
 
 class NotificationHelper {
     private static final String TAG = "NotificationHelper";
-    private static final String NOTIFICATION_CHANNEL_ID = "com.supersami.foregroundservice.channel";
+    private static final String NOTIFICATION_CHANNEL_ID = "com.paulkiren.foregroundservice.channel";
 
     private static NotificationHelper instance = null;
     private NotificationManager mNotificationManager;

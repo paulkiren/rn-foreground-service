@@ -19,7 +19,7 @@ android {
         buildConfig true
     }
     
-    namespace "com.supersami.foregroundservice"
+    namespace "com.paulkiren.foregroundservice"
     
     lintOptions {
         abortOnError false

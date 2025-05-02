@@ -1,4 +1,4 @@
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import java.util.Arrays;
 import java.util.Collections;
