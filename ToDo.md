@@ -272,7 +272,7 @@ android {
         buildConfig true
     }
     
-    namespace "com.supersami.foregroundservice"
+    namespace "com.paulkiren.foregroundservice"
     
     lintOptions {
         abortOnError false
@@ -304,7 +304,7 @@ Made changes.
 
 Now let's update the NotificationHelper class to properly handle modern Android notification requirements, especially for Android 13+ which requires explicit notification permissions:
 ````
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -329,7 +329,7 @@ import android.content.pm.PackageManager;
 
 class NotificationHelper {
     private static final String TAG = "NotificationHelper";
-    private static final String NOTIFICATION_CHANNEL_ID = "com.supersami.foregroundservice.channel";
+    private static final String NOTIFICATION_CHANNEL_ID = "com.paulkiren.foregroundservice.channel";
 
     private static NotificationHelper instance = null;
     private NotificationManager mNotificationManager;
@@ -630,7 +630,7 @@ Made changes.
 
 Let's continue upgrading the plugin. Now I'll update the ForegroundService.java file to modernize it for the latest Android requirements, especially for Android 12+ which has stricter background service limitations:
 ````
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -653,14 +653,14 @@ public class ForegroundService extends Service {
     private static final String TAG = "ForegroundService";
 
     // Constants moved from Constants.java
-    public static final String NOTIFICATION_CONFIG = "com.supersami.foregroundservice.notif_config";
-    public static final String TASK_CONFIG = "com.supersami.foregroundservice.task_config";
+    public static final String NOTIFICATION_CONFIG = "com.paulkiren.foregroundservice.notif_config";
+    public static final String TASK_CONFIG = "com.paulkiren.foregroundservice.task_config";
 
-    public static final String ACTION_FOREGROUND_SERVICE_START = "com.supersami.foregroundservice.service_start";
-    public static final String ACTION_FOREGROUND_SERVICE_STOP = "com.supersami.foregroundservice.service_stop";
-    public static final String ACTION_FOREGROUND_SERVICE_STOP_ALL = "com.supersami.foregroundservice.service_all";
-    public static final String ACTION_FOREGROUND_RUN_TASK = "com.supersami.foregroundservice.service_run_task";
-    public static final String ACTION_UPDATE_NOTIFICATION = "com.supersami.foregroundservice.service_update_notification";
+    public static final String ACTION_FOREGROUND_SERVICE_START = "com.paulkiren.foregroundservice.service_start";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP = "com.paulkiren.foregroundservice.service_stop";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP_ALL = "com.paulkiren.foregroundservice.service_all";
+    public static final String ACTION_FOREGROUND_RUN_TASK = "com.paulkiren.foregroundservice.service_run_task";
+    public static final String ACTION_UPDATE_NOTIFICATION = "com.paulkiren.foregroundservice.service_update_notification";
 
     private static ForegroundService mInstance = null;
     private static Bundle lastNotificationConfig = null;
@@ -1007,7 +1007,7 @@ Made changes.
 
 Now, let's update the ForegroundServiceModule class to implement the new React Native architecture patterns and ensure it handles notification permissions properly for Android 13+. This is a critical part of the modernization:
 ````
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -1027,13 +1027,13 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 
-import static com.supersami.foregroundservice.ForegroundService.NOTIFICATION_CONFIG;
-import static com.supersami.foregroundservice.ForegroundService.TASK_CONFIG;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_START;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_UPDATE_NOTIFICATION;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP_ALL;
-import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_RUN_TASK;
+import static com.paulkiren.foregroundservice.ForegroundService.NOTIFICATION_CONFIG;
+import static com.paulkiren.foregroundservice.ForegroundService.TASK_CONFIG;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_START;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_UPDATE_NOTIFICATION;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP_ALL;
+import static com.paulkiren.foregroundservice.ForegroundService.ACTION_FOREGROUND_RUN_TASK;
 
 @ReactModule(name = ForegroundServiceModule.NAME)
 public class ForegroundServiceModule extends ReactContextBaseJavaModule {
@@ -1299,7 +1299,7 @@ Made changes.
 
 Now let's update the ForegroundServicePackage.java file to support the New React Native Architecture and ensure proper module registration:I'll continue updating your React Native foreground service plugin. I've now finished the major Android native module updates to ensure it works with modern Android versions. Let's update the JavaScript interface and TypeScript definitions to make the plugin more developer-friendly:
 ````
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import java.util.Arrays;
 import java.util.Collections;

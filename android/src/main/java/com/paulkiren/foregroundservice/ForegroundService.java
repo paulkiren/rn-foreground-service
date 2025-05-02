@@ -1,4 +1,4 @@
-package com.supersami.foregroundservice;
+package com.paulkiren.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -21,14 +21,14 @@ public class ForegroundService extends Service {
     private static final String TAG = "ForegroundService";
 
     // Constants moved from Constants.java
-    public static final String NOTIFICATION_CONFIG = "com.supersami.foregroundservice.notif_config";
-    public static final String TASK_CONFIG = "com.supersami.foregroundservice.task_config";
+    public static final String NOTIFICATION_CONFIG = "com.paulkiren.foregroundservice.notif_config";
+    public static final String TASK_CONFIG = "com.paulkiren.foregroundservice.task_config";
 
-    public static final String ACTION_FOREGROUND_SERVICE_START = "com.supersami.foregroundservice.service_start";
-    public static final String ACTION_FOREGROUND_SERVICE_STOP = "com.supersami.foregroundservice.service_stop";
-    public static final String ACTION_FOREGROUND_SERVICE_STOP_ALL = "com.supersami.foregroundservice.service_all";
-    public static final String ACTION_FOREGROUND_RUN_TASK = "com.supersami.foregroundservice.service_run_task";
-    public static final String ACTION_UPDATE_NOTIFICATION = "com.supersami.foregroundservice.service_update_notification";
+    public static final String ACTION_FOREGROUND_SERVICE_START = "com.paulkiren.foregroundservice.service_start";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP = "com.paulkiren.foregroundservice.service_stop";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP_ALL = "com.paulkiren.foregroundservice.service_all";
+    public static final String ACTION_FOREGROUND_RUN_TASK = "com.paulkiren.foregroundservice.service_run_task";
+    public static final String ACTION_UPDATE_NOTIFICATION = "com.paulkiren.foregroundservice.service_update_notification";
 
     private static ForegroundService mInstance = null;
     private static Bundle lastNotificationConfig = null;
