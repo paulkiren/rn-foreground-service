@@ -7,7 +7,15 @@
   "repository": "paulkiren/rn-foreground-service",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "node postinstall.js"
+    "postinstall": "node postinstall.js",
+    "prepare": "npm run clean",
+    "clean": "rm -rf android/build",
+    "build": "tsc",
+    "prepublishOnly": "npm run clean && npm run build",
+    "lint": "echo \"No linting configured\"",
+    "preversion": "npm run lint",
+    "version": "git add -A",
+    "postversion": "git push && git push --tags"
   },
   "license": "MIT",
   "keywords": [
