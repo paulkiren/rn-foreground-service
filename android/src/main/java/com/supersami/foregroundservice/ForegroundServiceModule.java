@@ -8,20 +8,35 @@ import android.util.Log;
 import android.Manifest;
 import android.content.pm.PackageManager;
 
+import androidx.annotation.NonNull;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.module.annotations.ReactModule;
 
-import static com.supersami.foregroundservice.Constants.ERROR_INVALID_CONFIG;
-import static com.supersami.foregroundservice.Constants.ERROR_SERVICE_ERROR;
-import static com.supersami.foregroundservice.Constants.NOTIFICATION_CONFIG;
-import static com.supersami.foregroundservice.Constants.TASK_CONFIG;
+import static com.supersami.foregroundservice.ForegroundService.NOTIFICATION_CONFIG;
+import static com.supersami.foregroundservice.ForegroundService.TASK_CONFIG;
+import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_START;
+import static com.supersami.foregroundservice.ForegroundService.ACTION_UPDATE_NOTIFICATION;
+import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP;
+import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_SERVICE_STOP_ALL;
+import static com.supersami.foregroundservice.ForegroundService.ACTION_FOREGROUND_RUN_TASK;
 
-
+@ReactModule(name = ForegroundServiceModule.NAME)
 public class ForegroundServiceModule extends ReactContextBaseJavaModule {
+    private static final String TAG = "ForegroundServiceModule";
+    
+    // Error constants
+    private static final String ERROR_INVALID_CONFIG = "ERROR_INVALID_CONFIG";
+    private static final String ERROR_SERVICE_ERROR = "ERROR_SERVICE_ERROR";
+    private static final String ERROR_PERMISSION_DENIED = "ERROR_PERMISSION_DENIED";
+
+    // Module name for the new architecture
+    public static final String NAME = "ForegroundService";
 
     private final ReactApplicationContext reactContext;
 
@@ -31,8 +46,9 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     }
 
     @Override
+    @NonNull
     public String getName() {
-        return "ForegroundService";
+        return NAME;
     }
 
     private boolean isRunning(){
@@ -65,7 +81,7 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         }
 
         if (!notificationConfig.hasKey("title")) {
-            promise.reject(ERROR_INVALID_CONFIG, "ForegroundService: title is reqired");
+            promise.reject(ERROR_INVALID_CONFIG, "ForegroundService: title is required");
             return;
         }
 
@@ -74,11 +90,23 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             return;
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
+            promise.reject(ERROR_PERMISSION_DENIED, "ForegroundService: POST_NOTIFICATIONS permission required for Android 13+");
+            return;
+        }
+
         try{
             Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
-            intent.setAction(Constants.ACTION_FOREGROUND_SERVICE_START);
+            intent.setAction(ACTION_FOREGROUND_SERVICE_START);
             intent.putExtra(NOTIFICATION_CONFIG, Arguments.toBundle(notificationConfig));
-            ComponentName componentName = getReactApplicationContext().startService(intent);
+            
+            // Use startForegroundService for Android O+
+            ComponentName componentName;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                componentName = getReactApplicationContext().startForegroundService(intent);
+            } else {
+                componentName = getReactApplicationContext().startService(intent);
+            }
 
             if (componentName != null) {
                 promise.resolve(null);
@@ -86,8 +114,8 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 promise.reject(ERROR_SERVICE_ERROR, "ForegroundService: Foreground service failed to start.");
             }
         }
-        catch(IllegalStateException e){
-            promise.reject(ERROR_SERVICE_ERROR, "ForegroundService: Foreground service failed to start.");
+        catch(Exception e){
+            promise.reject(ERROR_SERVICE_ERROR, "ForegroundService: Foreground service failed to start: " + e.getMessage());
         }
     }
 
@@ -104,7 +132,7 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         }
 
         if (!notificationConfig.hasKey("title")) {
-            promise.reject(ERROR_INVALID_CONFIG, "ForegroundService: title is reqired");
+            promise.reject(ERROR_INVALID_CONFIG, "ForegroundService: title is required");
             return;
         }
 
@@ -113,12 +141,17 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        try{
-
+        try {
             Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
-            intent.setAction(Constants.ACTION_UPDATE_NOTIFICATION);
+            intent.setAction(ACTION_UPDATE_NOTIFICATION);
             intent.putExtra(NOTIFICATION_CONFIG, Arguments.toBundle(notificationConfig));
-            ComponentName componentName = getReactApplicationContext().startService(intent);
+            
+            ComponentName componentName;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                componentName = getReactApplicationContext().startForegroundService(intent);
+            } else {
+                componentName = getReactApplicationContext().startService(intent);
+            }
 
             if (componentName != null) {
                 promise.resolve(null);
@@ -126,8 +159,8 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 promise.reject(ERROR_SERVICE_ERROR, "Update notification failed.");
             }
         }
-        catch(IllegalStateException e){
-            promise.reject(ERROR_SERVICE_ERROR, "Update notification failed, service failed to start.");
+        catch(Exception e){
+            promise.reject(ERROR_SERVICE_ERROR, "Update notification failed: " + e.getMessage());
         }
     }
 
@@ -148,74 +181,57 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         try{
             int id = (int)notificationConfig.getDouble("id");
 
-            NotificationManager mNotificationManager=(NotificationManager)this.reactContext.getSystemService(this.reactContext.NOTIFICATION_SERVICE);
+            NotificationManager mNotificationManager = (NotificationManager)this.reactContext.getSystemService(this.reactContext.NOTIFICATION_SERVICE);
             mNotificationManager.cancel(id);
 
             promise.resolve(null);
         }
         catch(Exception e){
-            promise.reject(ERROR_SERVICE_ERROR, "Failed to cancel notification.");
+            promise.reject(ERROR_SERVICE_ERROR, "Failed to cancel notification: " + e.getMessage());
         }
     }
 
     @ReactMethod
     public void stopService(Promise promise) {
+        try {
+            // stop main service
+            Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
+            intent.setAction(ACTION_FOREGROUND_SERVICE_STOP);
 
-        // stop main service
-        Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
-        intent.setAction(Constants.ACTION_FOREGROUND_SERVICE_STOP);
-
-        //getReactApplicationContext().stopService(intent);
-
-        // Looks odd, but we do indeed send the stop flag with a start command
-        // if it fails, use the violent stop service instead
-        try{
-            getReactApplicationContext().startService(intent);
-        }
-        catch(IllegalStateException e){
-            try{
-                getReactApplicationContext().stopService(intent);
+            // Looks odd, but we do indeed send the stop flag with a start command
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getReactApplicationContext().startForegroundService(intent);
+            } else {
+                getReactApplicationContext().startService(intent);
             }
-            catch(Exception e2){
-                promise.reject(ERROR_SERVICE_ERROR, "Service stop failed: " + e2.getMessage());
-                return;
-            }
+
+            promise.resolve(null);
+        } catch(Exception e) {
+            promise.reject(ERROR_SERVICE_ERROR, "Service stop failed: " + e.getMessage());
         }
-
-        // Also stop headless tasks, should be noop if it's not running.
-        // TODO: Not working, headless task must finish regardless. We have to rely on JS code being well done.
-        // intent = new Intent(getReactApplicationContext(), ForegroundServiceTask.class);
-        // getReactApplicationContext().stopService(intent);
-
-        promise.resolve(null);
     }
 
     @ReactMethod
     public void stopServiceAll(Promise promise) {
+        try {
+            // stop main service with all action
+            Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
+            intent.setAction(ACTION_FOREGROUND_SERVICE_STOP_ALL);
 
-        // stop main service with all action
-        Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
-        intent.setAction(Constants.ACTION_FOREGROUND_SERVICE_STOP_ALL);
-
-        try{
-            getReactApplicationContext().startService(intent);
-        }
-        catch(IllegalStateException e){
-            try{
-                getReactApplicationContext().stopService(intent);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getReactApplicationContext().startForegroundService(intent);
+            } else {
+                getReactApplicationContext().startService(intent);
             }
-            catch(Exception e2){
-                promise.reject(ERROR_SERVICE_ERROR, "Service stop all failed: " + e2.getMessage());
-                return;
-            }
-        }
 
-        promise.resolve(null);
+            promise.resolve(null);
+        } catch(Exception e) {
+            promise.reject(ERROR_SERVICE_ERROR, "Service stop all failed: " + e.getMessage());
+        }
     }
 
     @ReactMethod
     public void runTask(ReadableMap taskConfig, Promise promise) {
-
         if (!taskConfig.hasKey("taskName")) {
             promise.reject(ERROR_INVALID_CONFIG, "taskName is required");
             return;
@@ -226,13 +242,17 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             return;
         }
 
-        try{
-
+        try {
             Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
-            intent.setAction(Constants.ACTION_FOREGROUND_RUN_TASK);
+            intent.setAction(ACTION_FOREGROUND_RUN_TASK);
             intent.putExtra(TASK_CONFIG, Arguments.toBundle(taskConfig));
 
-            ComponentName componentName = getReactApplicationContext().startService(intent);
+            ComponentName componentName;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                componentName = getReactApplicationContext().startForegroundService(intent);
+            } else {
+                componentName = getReactApplicationContext().startService(intent);
+            }
 
             if (componentName != null) {
                 promise.resolve(null);
@@ -240,14 +260,13 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 promise.reject(ERROR_SERVICE_ERROR, "Failed to run task: Service did not start");
             }
         }
-        catch(IllegalStateException e){
-            promise.reject(ERROR_SERVICE_ERROR, "Failed to run task: Service did not start");
+        catch(Exception e){
+            promise.reject(ERROR_SERVICE_ERROR, "Failed to run task: " + e.getMessage());
         }
     }
 
     @ReactMethod
     public void isRunning(Promise promise) {
-
         // Get the ForegroundService running value
         ForegroundService instance = ForegroundService.getInstance();
         int res = 0;
@@ -259,12 +278,8 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void requestNotificationPermission(Promise promise) {
-        if (!hasNotificationPermission()) {
-            promise.reject(ERROR_INVALID_CONFIG, "Notification permission is required.");
-            return;
-        }
-        promise.resolve(null);
+    public void checkNotificationPermission(Promise promise) {
+        boolean hasPermission = hasNotificationPermission();
+        promise.resolve(hasPermission);
     }
-
 }

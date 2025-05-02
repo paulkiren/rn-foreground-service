@@ -1,8 +1,9 @@
 {
   "name": "@kirenpaul/rn-foreground-service",
-  "version": "2.1.1",
-  "description": "A Foreground Service for React Native",
+  "version": "3.0.0",
+  "description": "A modern Foreground Service for React Native with support for Android 13+",
   "main": "index.js",
+  "types": "index.d.ts",
   "repository": "paulkiren/rn-foreground-service",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -15,13 +16,23 @@
     "android",
     "foreground",
     "service",
-    "background"
+    "background",
+    "notification",
+    "headless",
+    "task"
   ],
   "author": {
-    "name": "Raja Osama (supersami)"
+    "name": "Raja Osama (supersami)",
+    "contributors": [
+      "Kiren Paul"
+    ]
   },
   "peerDependencies": {
-    "react-native": ">=0.59.0"
+    "react": ">=16.8.0",
+    "react-native": ">=0.60.0"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^4.9.0"
+  }
 }

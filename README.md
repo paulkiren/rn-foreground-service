@@ -5,14 +5,14 @@ Modified by kirenpaul to suit internal needs
 >> Documentation has been moved to https://rn-foreground.vercel.app/
 > A foreground service with headless task that can manage multiple headless tasks execution at the same time and handle interactions. 🎉
 
-_Looking for a contributors._
+_Looking for contributors._
 
 ![react-browser-tab](https://miro.medium.com/max/1728/1*5ktY8XkS5a5iM6LsLOP7jw.png)
 [DEMO](https://github.com/Raja0sama/ForegroundSerivceExample)
 
-### When to use this ?
+### When to use this?
 
-If you want a foreground service in react native, RN-foreground-service is the way to go. This plugin handels Headless task, multiple task, notification customization, and notification interactions.
+If you want a foreground service in React Native, RN-foreground-service is the way to go. This plugin handles headless tasks, multiple tasks, notification customization, and notification interactions.
 
 [![NPM](https://img.shields.io/npm/v/@supersami/rn-foreground-service.svg)](https://www.npmjs.com/package/@supersami/rn-foreground-service) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
 
@@ -169,7 +169,7 @@ ReactNativeForegroundService.add_task(() => console.log('I am Being Tested'), {
 });
 ```
 
-## Starting Foreground service
+## Starting Foreground Service
 
 ```js
 ReactNativeForegroundService.start({
@@ -179,19 +179,8 @@ ReactNativeForegroundService.start({
 });
 ```
 
-[You can learn more about Rn-foreground-service.](https://medium.com/javascript-in-plain-english/react-native-foreground-service-f7fc8e617fba)
+[You can learn more about RN-foreground-service.](https://medium.com/javascript-in-plain-english/react-native-foreground-service-f7fc8e617fba)
 
 ## License
 
 MIT © [rajaosama](https://github.com/raja0sama)
-
-<!-- 
-To upgrade the service to comply with the latest Google Play Store policies and support a wide variety of Android versions, we need to address several key areas:
-
-Foreground Service Restrictions: Ensure the service uses a foreground notification and adheres to Android 12+ restrictions.
-PendingIntent Mutability: Use FLAG_IMMUTABLE or FLAG_MUTABLE for PendingIntent to comply with Android 12+.
-Background Execution Limits: Handle background execution limits introduced in Android 8.0 (Oreo) and later.
-Notification Channels: Ensure proper use of notification channels for Android 8.0+.
-Permissions: Add runtime permission checks for features requiring sensitive permissions.
-Battery Optimization: Handle battery optimization restrictions for long-running services.
-Below are the necessary changes grouped by file: -->

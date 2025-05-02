@@ -22,6 +22,7 @@ import android.content.pm.PackageManager;
 
 
 class NotificationHelper {
+    private static final String TAG = "NotificationHelper";
     private static final String NOTIFICATION_CHANNEL_ID = "com.supersami.foregroundservice.channel";
 
     private static NotificationHelper instance = null;
@@ -54,12 +55,19 @@ class NotificationHelper {
 
     private PendingIntent createPendingIntent(Context context, Intent intent) {
         int uniqueInt = (int) (System.currentTimeMillis() & 0xfffffff);
-        return PendingIntent.getActivity(context, uniqueInt, intent, PendingIntent.FLAG_IMMUTABLE);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        
+        // Add FLAG_IMMUTABLE for Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        
+        return PendingIntent.getActivity(context, uniqueInt, intent, flags);
     }
 
     Notification buildNotification(Context context, Bundle bundle) {
         if (bundle == null) {
-            Log.e("NotificationHelper", "buildNotification: invalid config");
+            Log.e(TAG, "buildNotification: invalid config");
             return null;
         }
         Class mainActivityClass = getMainActivityClass(context);
@@ -67,24 +75,29 @@ class NotificationHelper {
             return null;
         }
 
-        Log.d("SuperLog",""+bundle.getString("mainOnPress"));
+        Log.d(TAG,""+bundle.getString("mainOnPress"));
 
         Intent notificationIntent = new Intent(context, mainActivityClass);
         notificationIntent.putExtra("mainOnPress",bundle.getString("mainOnPress"));
+        
+        // Add flags to handle task stack properly
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
         PendingIntent pendingIntent = createPendingIntent(context, notificationIntent);
 
         if (bundle.getBoolean("button", false)) {
-            Log.d("SuperLog C ", "inButtonOnPress" + bundle.getString("buttonOnPress"));
+            Log.d(TAG, "inButtonOnPress" + bundle.getString("buttonOnPress"));
             Intent notificationBtnIntent = new Intent(context, mainActivityClass);
             notificationBtnIntent.putExtra("buttonOnPress", bundle.getString("buttonOnPress"));
+            notificationBtnIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             pendingBtnIntent = createPendingIntent(context, notificationBtnIntent);
         }
 
         if (bundle.getBoolean("button2", false)) {
-            Log.i("SuperLog C ", "inButton2OnPress" + bundle.getString("button2OnPress"));
+            Log.i(TAG, "inButton2OnPress" + bundle.getString("button2OnPress"));
             Intent notificationBtn2Intent = new Intent(context, mainActivityClass);
             notificationBtn2Intent.putExtra("button2OnPress", bundle.getString("button2OnPress"));
+            notificationBtn2Intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             pendingBtn2Intent = createPendingIntent(context, notificationBtn2Intent);
         }
 
@@ -134,7 +147,8 @@ class NotificationHelper {
             }
         }
 
-        checkOrCreateChannel(mNotificationManager, bundle);
+        // Ensure notification channels are set up correctly for Android O+
+        NotificationChannel channel = checkOrCreateChannel(mNotificationManager, bundle);
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
@@ -142,10 +156,16 @@ class NotificationHelper {
             .setPriority(priority)
             .setContentIntent(pendingIntent)
             .setOngoing(bundle.getBoolean("ongoing", false))
-            .setContentText(bundle.getString("message"));
+            .setContentText(bundle.getString("message"))
+            .setAutoCancel(false)
+            .setLocalOnly(false)
+            .setDefaults(0);
 
+        // Set foreground service type for Android 10+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            notificationBuilder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE);
+        }
        
-
         if(bundle.getBoolean("button", false) == true){
             notificationBuilder.addAction(R.drawable.redbox_top_border_background, bundle.getString("buttonText", "Button"), pendingBtnIntent);
         }
@@ -154,11 +174,10 @@ class NotificationHelper {
             notificationBuilder.addAction(R.drawable.redbox_top_border_background, bundle.getString("button2Text", "Button"), pendingBtn2Intent);
         }
 
-
-        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             notificationBuilder.setColor(this.config.getNotificationColor());
         }
+        
         String color = bundle.getString("color");
         if(color != null){
             notificationBuilder.setColor(Color.parseColor(color));
@@ -166,14 +185,12 @@ class NotificationHelper {
 
         notificationBuilder.setStyle(new NotificationCompat.BigTextStyle().bigText(bundle.getString("message")));
 
-
-        String iconName = bundle.getString("icon"); ;
+        String iconName = bundle.getString("icon");
         
         if(iconName == null){
             iconName = "ic_launcher";
         }
         notificationBuilder.setSmallIcon(getResourceIdForResourceName(context, iconName));
-
 
         String largeIconName = bundle.getString("largeIcon");
         if(largeIconName == null){
@@ -204,7 +221,6 @@ class NotificationHelper {
 
         notificationBuilder.setOnlyAlertOnce(true);
 
-
         return notificationBuilder.build();
     }
 
@@ -212,13 +228,13 @@ class NotificationHelper {
         String packageName = context.getPackageName();
         Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
         if (launchIntent == null || launchIntent.getComponent() == null) {
-            Log.e("NotificationHelper", "Failed to get launch intent or component");
+            Log.e(TAG, "Failed to get launch intent or component");
             return null;
         }
         try {
             return Class.forName(launchIntent.getComponent().getClassName());
         } catch (ClassNotFoundException e) {
-            Log.e("NotificationHelper", "Failed to get main activity class");
+            Log.e(TAG, "Failed to get main activity class", e);
             return null;
         }
     }
@@ -232,13 +248,33 @@ class NotificationHelper {
     }
 
     private static boolean channelCreated = false;
-    private void checkOrCreateChannel(NotificationManager manager, Bundle bundle) {
+    private NotificationChannel checkOrCreateChannel(NotificationManager manager, Bundle bundle) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
-            return;
-        if (channelCreated)
-            return;
+            return null;
+            
         if (manager == null)
-            return;
+            return null;
+
+        String channelId = NOTIFICATION_CHANNEL_ID;
+        String channelName = this.config.getChannelName();
+        
+        // Allow custom channel ID and name
+        if (bundle.containsKey("channelId")) {
+            channelId = bundle.getString("channelId");
+        }
+        
+        if (bundle.containsKey("channelName")) {
+            channelName = bundle.getString("channelName");
+        }
+        
+        // Check if channel exists
+        NotificationChannel existingChannel = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            existingChannel = manager.getNotificationChannel(channelId);
+            if (existingChannel != null) {
+                return existingChannel;
+            }
+        }
 
         int importance = NotificationManager.IMPORTANCE_HIGH;
         final String importanceString = bundle.getString("importance");
@@ -270,13 +306,14 @@ class NotificationHelper {
                     importance = NotificationManager.IMPORTANCE_HIGH;
             }
         }
-        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, this.config.getChannelName(), importance);
+        
+        NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
         channel.setDescription(this.config.getChannelDescription());
         channel.enableLights(true);
-        channel.enableVibration(bundle.getBoolean("vibration"));
+        channel.enableVibration(bundle.getBoolean("vibration", true));
         channel.setShowBadge(true);
 
         manager.createNotificationChannel(channel);
-        channelCreated = true;
+        return channel;
     }
 }
