@@ -2,67 +2,78 @@ package com.supersami.foregroundservice;
 
 import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.os.Handler;
+import android.os.IBinder;
 import android.util.Log;
 
 import com.facebook.react.HeadlessJsTaskService;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.jstasks.HeadlessJsTaskConfig;
 
-import static com.supersami.foregroundservice.Constants.NOTIFICATION_CONFIG;
-import static com.supersami.foregroundservice.Constants.TASK_CONFIG;
+import javax.annotation.Nullable;
 
 
 // NOTE: headless task will still block the UI so don't do heavy work, but this is also good
 // since they will share the JS environment
 // Service will also be a singleton in order to quickly find out if it is running
 
+
 public class ForegroundService extends Service {
+
+    // Constants moved from Constants.java
+    public static final String NOTIFICATION_CONFIG = "com.supersami.foregroundservice.notif_config";
+    public static final String TASK_CONFIG = "com.supersami.foregroundservice.task_config";
+
+    public static final String ACTION_FOREGROUND_SERVICE_START = "com.supersami.foregroundservice.service_start";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP = "com.supersami.foregroundservice.service_stop";
+    public static final String ACTION_FOREGROUND_SERVICE_STOP_ALL = "com.supersami.foregroundservice.service_all";
+    public static final String ACTION_FOREGROUND_RUN_TASK = "com.supersami.foregroundservice.service_run_task";
+    public static final String ACTION_UPDATE_NOTIFICATION = "com.supersami.foregroundservice.service_update_notification";
 
     private static ForegroundService mInstance = null;
     private static Bundle lastNotificationConfig = null;
     private int running = 0;
 
+    private Handler handler = new Handler();
+    private Runnable runnableCode;
 
-
-    public static boolean isServiceCreated(){
-        try{
+    public static boolean isServiceCreated() {
+        try {
             return mInstance != null && mInstance.ping();
-        }
-        catch(NullPointerException e){
+        } catch (NullPointerException e) {
             return false;
         }
     }
 
-    public static ForegroundService getInstance(){
-        if(isServiceCreated()){
+    public static ForegroundService getInstance() {
+        if (isServiceCreated()) {
             return mInstance;
         }
         return null;
     }
 
-    public int isRunning(){
+    public int isRunning() {
         return running;
     }
 
-    private boolean ping(){
+    private boolean ping() {
         return true;
     }
 
     @Override
     public void onCreate() {
-        //Log.e("ForegroundService", "destroy called");
         running = 0;
         mInstance = this;
     }
 
     @Override
     public void onDestroy() {
-        //Log.e("ForegroundService", "destroy called");
-        this.handler.removeCallbacks(this.runnableCode);
+        if (runnableCode != null) {
+            handler.removeCallbacks(runnableCode);
+        }
         running = 0;
         mInstance = null;
     }
@@ -71,53 +82,6 @@ public class ForegroundService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
-
-    private boolean startService(Bundle notificationConfig){
-        try {
-            int id = (int)notificationConfig.getDouble("id");
-
-            Notification notification = NotificationHelper
-                .getInstance(getApplicationContext())
-                .buildNotification(getApplicationContext(), notificationConfig);
-
-            // Ensure the service starts in the foreground
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (!NotificationHelper.hasNotificationPermission(this)) {
-                    Log.e("ForegroundService", "Notification permission is required for Android 12+.");
-                    return false;
-                }
-            }
-
-            startForeground(id, notification);
-
-            running += 1;
-
-            lastNotificationConfig = notificationConfig;
-
-            return true;
-
-        }
-        catch (Exception e) {
-            Log.e("ForegroundService", "Failed to start service: " + e.getMessage());
-            return false;
-        }
-    }
-    public  Bundle taskConfig;
-    private Handler handler = new Handler();
-    private Runnable runnableCode = new Runnable() {
-      @Override
-      public void run() {
-        final Intent service = new Intent(getApplicationContext(), ForegroundServiceTask.class);
-        service.putExtras(taskConfig);
-        getApplicationContext().startService(service);
-
-        int delay = (int)taskConfig.getDouble("delay");
-
-          int loopDelay = (int)taskConfig.getDouble("loopDelay");
-          Log.d("SuperLog",""+loopDelay);
-        handler.postDelayed(this, loopDelay);
-      }
-    };
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -130,23 +94,23 @@ public class ForegroundService extends Service {
         Bundle extras = intent.getExtras();
 
         switch (action) {
-            case Constants.ACTION_FOREGROUND_SERVICE_START:
+            case ACTION_FOREGROUND_SERVICE_START:
                 handleStartService(extras);
                 break;
 
-            case Constants.ACTION_UPDATE_NOTIFICATION:
+            case ACTION_UPDATE_NOTIFICATION:
                 handleUpdateNotification(extras);
                 break;
 
-            case Constants.ACTION_FOREGROUND_RUN_TASK:
+            case ACTION_FOREGROUND_RUN_TASK:
                 handleRunTask(extras);
                 break;
 
-            case Constants.ACTION_FOREGROUND_SERVICE_STOP:
+            case ACTION_FOREGROUND_SERVICE_STOP:
                 handleStopService();
                 break;
 
-            case Constants.ACTION_FOREGROUND_SERVICE_STOP_ALL:
+            case ACTION_FOREGROUND_SERVICE_STOP_ALL:
                 handleStopAllServices();
                 break;
 
@@ -200,7 +164,7 @@ public class ForegroundService extends Service {
         }
 
         if (extras != null && extras.containsKey(TASK_CONFIG)) {
-            taskConfig = extras.getBundle(TASK_CONFIG);
+            Bundle taskConfig = extras.getBundle(TASK_CONFIG);
             executeTask(taskConfig);
         }
     }
@@ -208,6 +172,13 @@ public class ForegroundService extends Service {
     private void executeTask(Bundle taskConfig) {
         try {
             if (taskConfig.getBoolean("onLoop", false)) {
+                runnableCode = new Runnable() {
+                    @Override
+                    public void run() {
+                        runHeadlessTask(taskConfig);
+                        handler.postDelayed(this, taskConfig.getInt("loopDelay"));
+                    }
+                };
                 handler.post(runnableCode);
             } else {
                 runHeadlessTask(taskConfig);
@@ -254,36 +225,47 @@ public class ForegroundService extends Service {
         }
     }
 
-    public void runHeadlessTask(Bundle bundle){
-        final Intent service = new Intent(getApplicationContext(), ForegroundServiceTask.class);
+    public void runHeadlessTask(Bundle bundle) {
+        Intent service = new Intent(getApplicationContext(), ForegroundServiceTask.class);
         service.putExtras(bundle);
 
-        int delay = (int)bundle.getDouble("delay");
+        int delay = (int) bundle.getDouble("delay");
 
-        if(delay <= 0){
+        if (delay <= 0) {
             getApplicationContext().startService(service);
-
             // wakelock should be released automatically by the task
             // Shouldn't be needed, it's called automatically by headless
             //HeadlessJsTaskService.acquireWakeLockNow(getApplicationContext());
-        }
-        else{
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if(running <= 0){
-                        return;
-                    }
-                    try{
-                        getApplicationContext().startService(service);
-                    }
-                    catch (Exception e) {
-                        Log.e("ForegroundService", "Failed to start delayed headless task: " + e.getMessage());
-                    }
+        
+        } else {
+            new Handler().postDelayed(() -> {
+                if (running <= 0) {
+                    return;
+                }
+                try {
+                    getApplicationContext().startService(service);
+                } catch (Exception e) {
+                    Log.e("ForegroundService", "Failed to start delayed headless task: " + e.getMessage());
                 }
             }, delay);
         }
+    }
 
-
+    // Inner class for headless task
+    public static class ForegroundServiceTask extends HeadlessJsTaskService {
+        @Nullable
+        @Override
+        protected HeadlessJsTaskConfig getTaskConfig(Intent intent) {
+            Bundle extras = intent.getExtras();
+            if (extras != null) {
+                return new HeadlessJsTaskConfig(
+                    extras.getString("taskName"),
+                    Arguments.fromBundle(extras),
+                    5000, // timeout for the task
+                    true // allow in foreground
+                );
+            }
+            return null;
+        }
     }
 }
