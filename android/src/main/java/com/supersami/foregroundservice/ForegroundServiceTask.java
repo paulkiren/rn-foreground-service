@@ -26,7 +26,7 @@ public class ForegroundServiceTask extends HeadlessJsTaskService {
             return new HeadlessJsTaskConfig(
                 extras.getString("taskName"),
                     Arguments.fromBundle(extras),
-                    5000, // timeout for the task
+                    60000, // timeout for the task (increased to 60 seconds for long-running location tasks)
                     true // optional: defines whether or not  the task is allowed in foreground. Default is false
             );
         }
