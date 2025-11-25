@@ -1,0 +1,67 @@
+name: Release and Publish
+
+# Trigger release workflow when code is pushed to main (e.g., after PR merge)
+on:
+  push:
+    branches: [main]
+
+# Only allow one release at a time
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Release job that handles versioning, changelog, and publishing
+  release:
+    name: Release and Publish to npm
+    runs-on: ubuntu-latest
+
+    # Required permissions for semantic-release
+    permissions:
+      contents: write       # Create releases and tags
+      issues: write         # Comment on released issues
+      pull-requests: write  # Comment on released PRs
+      id-token: write       # Enable npm provenance
+
+    steps:
+      # Checkout the repository code with full history for semantic-release
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full git history needed for changelog generation
+          persist-credentials: false  # Use GITHUB_TOKEN instead
+
+      # Setup Node.js with npm registry configuration
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Install dependencies using npm ci for reproducible builds
+      - name: Install dependencies
+        run: npm ci
+
+      # Use semantic-release to analyze commits, determine version, and publish
+      # semantic-release will:
+      # 1. Analyze commits to determine the next version (major/minor/patch)
+      # 2. Generate/update CHANGELOG.md
+      # 3. Create a GitHub release with release notes
+      # 4. Publish to npm with provenance attestation
+      - name: Release with semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+
+      # Notify on release success
+      - name: Release summary
+        if: success()
+        run: echo "✅ Release completed successfully! Check GitHub Releases and npm for the new version."
+
+      # Notify on release failure
+      - name: Release failure
+        if: failure()
+        run: echo "❌ Release failed. Check the logs above for details."
