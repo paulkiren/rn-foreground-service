@@ -1,6 +1,6 @@
 {
   "name": "@kirenpaul/rn-foreground-service",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "A Foreground Service for React Native",
   "main": "index.js",
   "types": "index.d.ts",
