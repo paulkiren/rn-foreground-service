@@ -1,20 +1,37 @@
-
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.supersami.foregroundservice">
 
+    <!-- Basic permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-        <application>
 
+    <!-- Android 13+ notification permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Android 14+ foreground service type permissions -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application>
+        <!-- Service declarations for library testing -->
+        <service
+            android:name=".ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <service
+            android:name=".ForegroundServiceTask"
+            android:exported="false" />
+
+        <!-- MainActivity for library testing/example purposes -->
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
             android:windowSoftInputMode="adjustResize"
-             android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
-        </application>
+    </application>
 </manifest>
