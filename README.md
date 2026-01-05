@@ -614,27 +614,101 @@ async function startLocationTracking() {
 }
 ```
 
+## Service Types (Android 14+)
+
+Starting with Android 14, you must specify what type of work your foreground service performs. The postinstall script configures your app with `dataSync|location|mediaPlayback` by default, which covers most use cases.
+
+### Available Service Types
+
+| Type | Permission Required | Use Case |
+|------|---------------------|----------|
+| **dataSync** | `FOREGROUND_SERVICE_DATA_SYNC` | File downloads, data backup, sync operations |
+| **location** | `FOREGROUND_SERVICE_LOCATION` | GPS tracking, geofencing, navigation |
+| **mediaPlayback** | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Music/video players |
+| **camera** | `FOREGROUND_SERVICE_CAMERA` | Video recording, camera streaming |
+| **microphone** | `FOREGROUND_SERVICE_MICROPHONE` | Audio recording |
+| **phoneCall** | `FOREGROUND_SERVICE_PHONE_CALL` | VoIP calls |
+| **connectedDevice** | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Bluetooth, NFC, USB connections |
+| **health** | `FOREGROUND_SERVICE_HEALTH` | Fitness tracking, health monitoring |
+| **mediaProjection** | `FOREGROUND_SERVICE_MEDIA_PROJECTION` | Screen recording, casting |
+| **remoteMessaging** | `FOREGROUND_SERVICE_REMOTE_MESSAGING` | Messaging apps |
+| **shortService** | None | Short-duration tasks (< 3 minutes) |
+| **specialUse** | `FOREGROUND_SERVICE_SPECIAL_USE` | Special use cases approved by Google |
+
+### Changing Service Type
+
+If you need a different service type (e.g., `camera` or `microphone`), manually edit the service declaration in your `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<service
+    android:name="com.supersami.foregroundservice.ForegroundService"
+    android:foregroundServiceType="camera"  <!-- Change to your type -->
+    android:exported="false" />
+```
+
+Don't forget to add the corresponding permission:
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+<uses-permission android:name="android.permission.CAMERA" /> <!-- Runtime permission also needed -->
+```
+
 ## Troubleshooting
+
+### Service Crashes on Android 14+ with SecurityException
+
+**Error:** `SecurityException: Starting FGS with type dataSync requires permission...`
+
+**Solution:**
+1. Add the type-specific permission to your `AndroidManifest.xml`:
+   ```xml
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+   ```
+2. Ensure your app's `targetSdkVersion` is set to 34 in `build.gradle`
+
+### Notification Not Appearing on Android 13+
+
+**Error:** Service starts but no notification appears
+
+**Solution:**
+1. Add POST_NOTIFICATIONS permission to AndroidManifest.xml
+2. Request runtime permission before starting service (see Setup section 4)
+
+### ForegroundServiceStartNotAllowedException (Android 12+)
+
+**Error:** Cannot start foreground service from background
+
+**Solution:**
+- Start the service only when your app is in the foreground
+- Or use one of the [exemptions from background restrictions](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start#background-start-restriction-exemptions)
 
 ### Service Not Starting
 - Ensure you called `register()` before `start()`
 - Verify AndroidManifest.xml has all required permissions and services
 - Check that notification channel is properly configured
+- Check logs for specific error messages
 
 ### Tasks Not Executing
 - Confirm the service is running with `is_running()`
 - Check task delay is set correctly (minimum effective interval is 500ms)
 - Verify task function doesn't throw unhandled errors
 
-### Notification Not Appearing
-- Check notification importance level
-- Verify icon resources exist in your Android project
-- Ensure colors.xml is properly configured
+### Old Service Declaration Format
 
-### App Crashes on Install
-- Make sure postinstall script ran successfully
-- Manually verify AndroidManifest.xml configuration
-- Check that MainActivity.java is properly updated
+If you're upgrading from v2.x and see warnings during install, update your service declarations:
+
+**Old format (will NOT work on Android 14+):**
+```xml
+<service android:name="com.supersami.foregroundservice.ForegroundService"></service>
+```
+
+**New format (required for Android 14+):**
+```xml
+<service
+    android:name="com.supersami.foregroundservice.ForegroundService"
+    android:foregroundServiceType="dataSync|location|mediaPlayback"
+    android:exported="false" />
+```
 
 ## Platform Support
 
