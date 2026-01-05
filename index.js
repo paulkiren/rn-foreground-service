@@ -181,6 +181,7 @@ const start = async ({
   id,
   title = id,
   message = "Foreground Service Running...",
+  serviceType = "dataSync",
   vibration = false,
   visibility = "public",
   icon = "ic_notification",
@@ -204,6 +205,7 @@ const start = async ({
         id,
         title,
         message,
+        serviceType,
         vibration,
         visibility,
         icon,
@@ -386,6 +388,23 @@ const eventListener = (callBack) => {
   };
 };
 
+/**
+ * Check if POST_NOTIFICATIONS permission is granted (Android 13+)
+ * @return Promise<boolean> - true if permission granted or not required, false otherwise
+ */
+const checkNotificationPermission = () => {
+  return ForegroundServiceModule.checkNotificationPermission();
+};
+
+/**
+ * Check if app can currently start a foreground service (Android 12+)
+ * On Android 12+, apps cannot start foreground services from background
+ * @return Promise<boolean> - true if can start, false otherwise
+ */
+const canStartForegroundService = () => {
+  return ForegroundServiceModule.canStartForegroundService();
+};
+
 const ReactNativeForegroundService = {
   register,
   start,
@@ -402,6 +421,8 @@ const ReactNativeForegroundService = {
   get_all_tasks,
   cancel_notification,
   eventListener,
+  checkNotificationPermission,
+  canStartForegroundService,
 };
 
 export default ReactNativeForegroundService;
