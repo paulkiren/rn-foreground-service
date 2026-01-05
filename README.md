@@ -6,21 +6,35 @@ A powerful React Native library for running Android foreground services with hea
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://www.android.com)
 
+## 🎉 What's New in v3.0.0
+
+- 🚀 **Full Android 14+ Support** - Complete compatibility with Android 14's foreground service requirements
+- 🎯 **Dynamic Service Types** - Pass `serviceType` parameter to specify service type (dataSync, location, etc.)
+- ✅ **New Helper Methods** - `checkNotificationPermission()` and `canStartForegroundService()`
+- 📘 **Full TypeScript Support** - Complete type definitions with autocomplete for all 11 service types
+- 🔒 **Enhanced Error Messages** - Clear, version-specific error messages with actionable solutions
+- ⚡ **Zero Breaking Changes** - Fully backward compatible with v2.x
+
+See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
+
 ## Overview
 
 This library enables React Native applications to run foreground services on Android with persistent notifications. It's perfect for applications that need to perform background operations while keeping the user informed through a persistent notification.
 
 ### Key Features
 
-- Run persistent foreground services on Android
-- Execute multiple headless tasks concurrently
-- Customizable notifications with up to 2 action buttons
-- Progress bar support in notifications
-- Custom notification colors and icons
-- Handle notification and button click events
-- Comprehensive task management API
-- Automatic setup via postinstall script
-- TypeScript support included
+- ✅ **Android 14+ Compatible** - Full support for foreground service types
+- 🎯 **11 Service Types** - Specify service type (dataSync, location, mediaPlayback, etc.)
+- 🔔 **Smart Permission Handling** - Built-in helpers for Android 13+ notifications
+- 🚀 **Run persistent foreground services** on Android
+- 📋 **Execute multiple headless tasks** concurrently
+- 🎨 **Customizable notifications** with up to 2 action buttons
+- 📊 **Progress bar support** in notifications
+- 🎨 **Custom notification colors** and icons
+- 🖱️ **Handle notification** and button click events
+- 📚 **Comprehensive task management** API
+- ⚙️ **Automatic setup** via postinstall script
+- 📘 **Full TypeScript support** with type definitions
 
 ### When to Use This Library
 
@@ -43,7 +57,11 @@ or
 yarn add @kirenpaul/rn-foreground-service
 ```
 
-The postinstall script will automatically configure your Android files, but you may need to verify the setup manually.
+The postinstall script will automatically configure your Android files with Android 14+ compatible service declarations.
+
+### 📋 Upgrading from v2.x?
+
+If you're upgrading from v2.x, see the [Migration Guide](MIGRATION_v2_to_v3.md) for step-by-step instructions. Your JavaScript code will work as-is, but you'll need to update your AndroidManifest.xml.
 
 ## 🔴 Important: Android 14+ Requirements
 
@@ -277,11 +295,19 @@ AppRegistry.registerComponent(appName, () => App);
 ```javascript
 import ReactNativeForegroundService from '@kirenpaul/rn-foreground-service';
 
-// Basic usage
+// Basic usage (defaults to dataSync service type)
 await ReactNativeForegroundService.start({
   id: 144,
   title: 'Service Running',
   message: 'Your app is running in the background',
+});
+
+// Specify service type (NEW in v3.0.0)
+await ReactNativeForegroundService.start({
+  id: 144,
+  title: 'Location Tracker',
+  message: 'Tracking your location',
+  serviceType: 'location', // Specify the service type
 });
 
 // With custom configuration
@@ -289,6 +315,7 @@ await ReactNativeForegroundService.start({
   id: 144,
   title: 'Download Manager',
   message: 'Downloading files...',
+  serviceType: 'dataSync', // NEW: Specify service type
   icon: 'ic_download',
   largeIcon: 'ic_launcher',
   importance: 'high',
@@ -437,6 +464,39 @@ console.log('Service running:', isRunning);
 await ReactNativeForegroundService.cancel_notification(144);
 ```
 
+### Check Permissions and Service State (NEW in v3.0.0)
+
+```javascript
+// Check if POST_NOTIFICATIONS permission is granted (Android 13+)
+const hasNotificationPermission = await ReactNativeForegroundService.checkNotificationPermission();
+
+if (!hasNotificationPermission) {
+  // Request permission
+  await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+  );
+}
+
+// Check if app can start foreground service (Android 12+)
+// Returns false if app is in background on Android 12+
+const canStart = await ReactNativeForegroundService.canStartForegroundService();
+
+if (!canStart) {
+  Alert.alert(
+    'Cannot Start Service',
+    'Please open the app to start the background service'
+  );
+  return;
+}
+
+// Now safe to start the service
+await ReactNativeForegroundService.start({
+  id: 144,
+  title: 'Service',
+  message: 'Running...'
+});
+```
+
 ## API Reference
 
 ### Methods
@@ -451,6 +511,7 @@ Starts the foreground service with a notification.
 - `id` (number, required): Unique notification ID
 - `title` (string): Notification title
 - `message` (string): Notification message
+- `serviceType` (string, **NEW in v3.0.0**): Service type - one of: `'dataSync'` (default), `'location'`, `'mediaPlayback'`, `'camera'`, `'microphone'`, `'phoneCall'`, `'connectedDevice'`, `'health'`, `'mediaProjection'`, `'remoteMessaging'`, `'shortService'`, `'specialUse'`, `'systemExempted'`
 - `icon` (string): Small icon resource name (default: 'ic_notification')
 - `largeIcon` (string): Large icon resource name (default: 'ic_launcher')
 - `importance` (string): 'none' | 'min' | 'low' | 'default' | 'high' | 'max'
@@ -518,6 +579,35 @@ Listens for notification interaction events.
 
 **Returns:** Cleanup function to remove the listener
 
+#### `checkNotificationPermission()` (**NEW in v3.0.0**)
+Checks if POST_NOTIFICATIONS permission is granted (Android 13+).
+
+**Returns:** Promise<boolean> - true if permission granted or not required (Android 12 and below), false otherwise
+
+**Example:**
+```javascript
+const hasPermission = await ReactNativeForegroundService.checkNotificationPermission();
+if (!hasPermission) {
+  // Request permission
+  await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+}
+```
+
+#### `canStartForegroundService()` (**NEW in v3.0.0**)
+Checks if app can currently start a foreground service (Android 12+). On Android 12+, apps cannot start foreground services from the background.
+
+**Returns:** Promise<boolean> - true if can start, false if app is in background (Android 12+) or other restriction applies
+
+**Example:**
+```javascript
+const canStart = await ReactNativeForegroundService.canStartForegroundService();
+if (!canStart) {
+  Alert.alert('Cannot start service from background');
+  return;
+}
+await ReactNativeForegroundService.start({...});
+```
+
 ## Examples
 
 ### Download Manager
@@ -536,6 +626,7 @@ class DownloadManager {
       id: 1,
       title: 'Download Manager',
       message: `Downloading ${filename}`,
+      serviceType: 'dataSync', // Specify service type for data operations
       button: true,
       buttonText: 'Cancel',
       buttonOnPress: 'cancel_download',
@@ -586,6 +677,7 @@ async function startLocationTracking() {
     id: 2,
     title: 'Location Tracking',
     message: 'Tracking your location',
+    serviceType: 'location', // Specify location service type
     icon: 'ic_location',
     importance: 'low',
     button: true,
@@ -616,7 +708,31 @@ async function startLocationTracking() {
 
 ## Service Types (Android 14+)
 
-Starting with Android 14, you must specify what type of work your foreground service performs. The postinstall script configures your app with `dataSync|location|mediaPlayback` by default, which covers most use cases.
+Starting with Android 14, you must specify what type of work your foreground service performs.
+
+### How Service Types Work (v3.0.0+)
+
+**Two ways to configure service types:**
+
+1. **Dynamic (Recommended)** - Pass `serviceType` parameter when starting the service:
+   ```javascript
+   await ReactNativeForegroundService.start({
+     id: 1,
+     title: 'Service',
+     message: 'Running...',
+     serviceType: 'location' // Dynamically specify type
+   });
+   ```
+
+2. **Static** - Configure in AndroidManifest.xml (for apps that only use one type):
+   ```xml
+   <service
+       android:name="com.supersami.foregroundservice.ForegroundService"
+       android:foregroundServiceType="location"
+       android:exported="false" />
+   ```
+
+The postinstall script configures your app with `dataSync|location|mediaPlayback` by default, which covers most use cases. You can override this by passing the `serviceType` parameter.
 
 ### Available Service Types
 
@@ -637,7 +753,38 @@ Starting with Android 14, you must specify what type of work your foreground ser
 
 ### Changing Service Type
 
-If you need a different service type (e.g., `camera` or `microphone`), manually edit the service declaration in your `android/app/src/main/AndroidManifest.xml`:
+#### Option 1: Dynamic (Recommended - NEW in v3.0.0)
+
+Simply pass the `serviceType` parameter when starting the service:
+
+```javascript
+// For camera usage
+await ReactNativeForegroundService.start({
+  id: 1,
+  title: 'Camera Service',
+  message: 'Recording...',
+  serviceType: 'camera' // Just pass the type!
+});
+
+// For microphone usage
+await ReactNativeForegroundService.start({
+  id: 2,
+  title: 'Audio Recorder',
+  message: 'Recording audio...',
+  serviceType: 'microphone'
+});
+```
+
+**Don't forget to add the corresponding permission to AndroidManifest.xml:**
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+<uses-permission android:name="android.permission.CAMERA" /> <!-- Runtime permission also needed -->
+```
+
+#### Option 2: Static (Legacy)
+
+Manually edit the service declaration in your `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <service
@@ -646,12 +793,7 @@ If you need a different service type (e.g., `camera` or `microphone`), manually 
     android:exported="false" />
 ```
 
-Don't forget to add the corresponding permission:
-
-```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
-<uses-permission android:name="android.permission.CAMERA" /> <!-- Runtime permission also needed -->
-```
+**Note:** With v3.0.0, you can use **both** approaches. The `serviceType` parameter overrides the manifest declaration, allowing you to dynamically change service types at runtime.
 
 ## Troubleshooting
 
@@ -712,8 +854,18 @@ If you're upgrading from v2.x and see warnings during install, update your servi
 
 ## Platform Support
 
-- Android: 5.0 (API 21) and above
-- iOS: Not supported (foreground services are an Android-specific feature)
+| Platform | Supported Versions | Notes |
+|----------|-------------------|-------|
+| **Android** | 9.0+ (API 28+) | Full support for all Android versions |
+| **Android 14+** | API 34+ | Full service type support |
+| **Android 13** | API 33 | POST_NOTIFICATIONS permission required |
+| **Android 12** | API 31-32 | Background start restrictions apply |
+| **iOS** | Not supported | Foreground services are Android-specific |
+
+**Compatibility Notes:**
+- **Recommended:** Target Android 14 (API 34) for best experience
+- **Minimum:** Android 9 (API 28) required
+- **React Native:** 0.59.0 or higher
 
 ## Contributing
 
@@ -733,9 +885,18 @@ This library is based on and adapted from:
 
 Original implementation by [Raja Osama](https://github.com/raja0sama).
 
+## Documentation
+
+- 📖 [Complete API Reference](#api-reference) - All methods and parameters
+- 🔄 [Migration Guide](MIGRATION_v2_to_v3.md) - Upgrading from v2.x to v3.0.0
+- 📋 [CHANGELOG](CHANGELOG.md) - Version history and release notes
+- 🏗️ [Architecture Documentation](ARCHITECTURE.md) - Library architecture and design
+- 🚀 [Release Notes](RELEASE_NOTES_v3.0.0.md) - v3.0.0 release details
+
 ## Resources
 
 - [Medium Article: React Native Foreground Service](https://medium.com/javascript-in-plain-english/react-native-foreground-service-f7fc8e617fba)
 - [Example Project](https://github.com/Raja0sama/ForegroundSerivceExample)
 - [NPM Package](https://www.npmjs.com/package/@kirenpaul/rn-foreground-service)
 - [GitHub Repository](https://github.com/paulkiren/rn-foreground-service)
+- [Android Foreground Services Documentation](https://developer.android.com/develop/background-work/services/foreground-services)
