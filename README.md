@@ -65,12 +65,19 @@ If you're upgrading from v2.x, see the [Migration Guide](MIGRATION_v2_to_v3.md) 
 
 ## 🔴 Important: Android 14+ Requirements
 
-Starting with **Android 14 (API 34)**, foreground services have new requirements. This library is compatible with Android 14+, but you **must** complete the setup steps below.
+Starting with **Android 14 (API 34)**, foreground services have new requirements. **Version 3.0.0 makes this easy** with automatic configuration and new helper methods.
 
-### What Changed?
-- ✅ Service declarations with `foregroundServiceType` (auto-configured by postinstall)
-- ❌ Type-specific permissions (you must add these)
-- ❌ Runtime notification permission on Android 13+ (you must request this)
+### What's Handled Automatically (v3.0.0)
+- ✅ **Service declarations** - postinstall script configures your AndroidManifest.xml
+- ✅ **Dynamic service types** - Pass `serviceType` parameter when starting service
+- ✅ **Permission checks** - New helper methods: `checkNotificationPermission()` and `canStartForegroundService()`
+
+### What You Must Configure
+- ❌ **Type-specific permissions** - Add to your AndroidManifest.xml (see below)
+- ❌ **Runtime permission request** - Request POST_NOTIFICATIONS on Android 13+ (code provided below)
+- ❌ **targetSdkVersion** - Update to 34 in build.gradle
+
+**Good news:** With v3.0.0, you can dynamically specify service types without editing the manifest each time! See the [Usage](#start-the-foreground-service) section.
 
 ## Setup
 
@@ -131,7 +138,20 @@ The postinstall script automatically adds service declarations, but you **must a
 </manifest>
 ```
 
-**Note:** The postinstall script configures services with `dataSync|location|mediaPlayback` types by default. If you need a different type (like `camera` or `microphone`), manually edit the service declaration.
+**Note:** The postinstall script configures services with `dataSync|location|mediaPlayback` types by default.
+
+**NEW in v3.0.0:** You can now **dynamically specify** the service type in your JavaScript code:
+```javascript
+// No manifest editing needed!
+await ReactNativeForegroundService.start({
+  id: 1,
+  title: 'Camera Service',
+  message: 'Recording...',
+  serviceType: 'camera' // Just pass the type you need
+});
+```
+
+If you prefer static configuration or need a type not in the default list, you can manually edit the service declaration in your manifest.
 
 ### 2. MainActivity.java
 
@@ -210,49 +230,60 @@ Create or update `android/app/src/main/res/values/colors.xml`:
 
 ### 4. Request Runtime Permissions (Android 13+)
 
-**Critical:** On Android 13+, you must request the `POST_NOTIFICATIONS` permission at runtime before starting the service:
+**Critical:** On Android 13+, you must request the `POST_NOTIFICATIONS` permission at runtime before starting the service.
+
+**Easy way (NEW in v3.0.0)** - Use the built-in helper:
 
 ```javascript
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid } from 'react-native';
 import ReactNativeForegroundService from '@kirenpaul/rn-foreground-service';
 
 async function requestNotificationPermission() {
-  if (Platform.OS === 'android') {
-    if (Platform.Version >= 33) {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-        {
-          title: 'Notification Permission',
-          message: 'This app needs notification permission to show service status.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        }
-      );
+  // Check if permission is already granted (works on all Android versions)
+  const hasPermission = await ReactNativeForegroundService.checkNotificationPermission();
 
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Notification permission denied');
-        return false;
+  if (!hasPermission) {
+    // Request permission
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      {
+        title: 'Notification Permission',
+        message: 'This app needs notification permission to show service status.',
+        buttonNeutral: 'Ask Me Later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
       }
-    }
+    );
+
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
   }
+
   return true;
 }
 
 // Use before starting service
 async function startMyService() {
+  // 1. Check notification permission (Android 13+)
   const hasPermission = await requestNotificationPermission();
-
   if (!hasPermission) {
     console.log('Cannot start service without notification permission');
     return;
   }
 
-  // Now safe to start the service
+  // 2. Check if can start from background (Android 12+) - NEW in v3.0.0
+  const canStart = await ReactNativeForegroundService.canStartForegroundService();
+  if (!canStart) {
+    console.log('Cannot start service from background. Please open the app.');
+    // You might want to show a notification or alert to the user
+    return;
+  }
+
+  // 3. Now safe to start the service!
   await ReactNativeForegroundService.start({
     id: 144,
     title: 'Service Running',
     message: 'Performing background tasks...',
+    serviceType: 'dataSync', // Specify service type (NEW in v3.0.0)
   });
 }
 ```
@@ -271,6 +302,25 @@ android {
     }
 }
 ```
+
+---
+
+### ✨ v3.0.0 Makes Android 14+ Easy!
+
+**What used to be hard:**
+- ❌ Manually editing AndroidManifest.xml for different service types
+- ❌ Complex permission checking logic
+- ❌ Unclear error messages when things went wrong
+
+**What's easy now with v3.0.0:**
+- ✅ **Dynamic service types** - Just pass `serviceType: 'location'` in your code
+- ✅ **Built-in helpers** - `checkNotificationPermission()` and `canStartForegroundService()`
+- ✅ **Clear errors** - Version-specific error messages that tell you exactly what to fix
+- ✅ **Auto-configuration** - postinstall script handles the AndroidManifest.xml setup
+
+See complete examples below! 👇
+
+---
 
 ## Usage
 
