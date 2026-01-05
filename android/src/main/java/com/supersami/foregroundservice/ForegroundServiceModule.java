@@ -1,10 +1,16 @@
 package com.supersami.foregroundservice;
 
+import android.Manifest;
+import android.app.ActivityManager;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.app.NotificationManager;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
+
+import androidx.core.content.ContextCompat;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -12,6 +18,8 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
+
+import java.util.List;
 
 import static com.supersami.foregroundservice.Constants.ERROR_INVALID_CONFIG;
 import static com.supersami.foregroundservice.Constants.ERROR_SERVICE_ERROR;
@@ -66,6 +74,18 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             return;
         }
 
+        // Android 13+ requires POST_NOTIFICATIONS permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(reactContext, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                promise.reject("PERMISSION_DENIED",
+                    "POST_NOTIFICATIONS permission not granted. " +
+                    "On Android 13+, you must request this permission at runtime before starting a foreground service. " +
+                    "Use PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)");
+                return;
+            }
+        }
+
         try{
             Intent intent = new Intent(getReactApplicationContext(), ForegroundService.class);
             intent.setAction(Constants.ACTION_FOREGROUND_SERVICE_START);
@@ -79,7 +99,34 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             }
         }
         catch(IllegalStateException e){
-            promise.reject(ERROR_SERVICE_ERROR, "ForegroundService: Foreground service failed to start.");
+            String errorMessage = "Foreground service failed to start.";
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                errorMessage += " On Android 12+, foreground services cannot be started from the background. " +
+                    "Make sure your app is visible when starting the service, or use one of the exemptions. " +
+                    "See: https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start";
+            }
+
+            Log.e("ForegroundService", errorMessage, e);
+            promise.reject(ERROR_SERVICE_ERROR, errorMessage);
+        }
+        catch(SecurityException e){
+            String errorMessage = "SecurityException: Missing required permissions. ";
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                errorMessage += "On Android 14+, you must declare the correct foreground service type " +
+                    "and request type-specific permissions (e.g., FOREGROUND_SERVICE_DATA_SYNC). " +
+                    "Check your AndroidManifest.xml and runtime permissions.";
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                errorMessage += "Make sure you have FOREGROUND_SERVICE permission in your manifest.";
+            }
+
+            Log.e("ForegroundService", errorMessage, e);
+            promise.reject("SECURITY_EXCEPTION", errorMessage);
+        }
+        catch(Exception e){
+            Log.e("ForegroundService", "Unexpected error starting service", e);
+            promise.reject(ERROR_SERVICE_ERROR, "Unexpected error: " + e.getMessage());
         }
     }
 
@@ -248,6 +295,64 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         }
 
         promise.resolve(res);
+    }
+
+    /**
+     * Check if POST_NOTIFICATIONS permission is granted (Android 13+)
+     * @param promise Resolves to true if permission granted or not required, false otherwise
+     */
+    @ReactMethod
+    public void checkNotificationPermission(Promise promise) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            boolean granted = ContextCompat.checkSelfPermission(reactContext,
+                Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            promise.resolve(granted);
+        } else {
+            // Before Android 13, no runtime permission needed
+            promise.resolve(true);
+        }
+    }
+
+    /**
+     * Check if app can currently start a foreground service (Android 12+)
+     * On Android 12+, apps cannot start foreground services from background
+     * @param promise Resolves to true if can start, false otherwise
+     */
+    @ReactMethod
+    public void canStartForegroundService(Promise promise) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                ActivityManager am = (ActivityManager)
+                    reactContext.getSystemService(Context.ACTIVITY_SERVICE);
+
+                if (am == null) {
+                    promise.resolve(false);
+                    return;
+                }
+
+                // Check if app is in foreground
+                List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
+
+                if (processes != null) {
+                    for (ActivityManager.RunningAppProcessInfo processInfo : processes) {
+                        if (processInfo.processName.equals(reactContext.getPackageName())) {
+                            boolean isForeground = processInfo.importance ==
+                                ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
+                            promise.resolve(isForeground);
+                            return;
+                        }
+                    }
+                }
+
+                promise.resolve(false);
+            } catch (Exception e) {
+                Log.e("ForegroundService", "Error checking foreground status", e);
+                promise.resolve(false);
+            }
+        } else {
+            // Before Android 12, no background restriction
+            promise.resolve(true);
+        }
     }
 
 }

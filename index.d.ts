@@ -1,9 +1,29 @@
+/**
+ * Android foreground service types
+ * See: https://developer.android.com/develop/background-work/services/fg-service-types
+ */
+type ForegroundServiceType =
+  | 'camera'
+  | 'connectedDevice'
+  | 'dataSync'
+  | 'health'
+  | 'location'
+  | 'mediaPlayback'
+  | 'mediaProjection'
+  | 'microphone'
+  | 'phoneCall'
+  | 'remoteMessaging'
+  | 'shortService'
+  | 'specialUse'
+  | 'systemExempted';
+
 declare const ReactNativeForegroundService: {
   register: () => void;
   start: ({
     id,
     title,
     message,
+    serviceType,
     vibration,
     visibility,
     icon,
@@ -24,6 +44,7 @@ declare const ReactNativeForegroundService: {
     id: any;
     title?: any;
     message?: string | undefined;
+    serviceType?: ForegroundServiceType | undefined;
     vibration?: boolean | undefined;
     visibility?: string | undefined;
     icon?: string | undefined;
@@ -130,5 +151,17 @@ declare const ReactNativeForegroundService: {
   get_all_tasks: () => {};
   cancel_notification: (id: any) => void;
   eventListener: (callBack: any) => () => void;
+  /**
+   * Check if POST_NOTIFICATIONS permission is granted (Android 13+)
+   * @returns Promise<boolean> - true if permission granted or not required, false otherwise
+   */
+  checkNotificationPermission: () => Promise<boolean>;
+  /**
+   * Check if app can currently start a foreground service (Android 12+)
+   * On Android 12+, apps cannot start foreground services from background
+   * @returns Promise<boolean> - true if can start, false otherwise
+   */
+  canStartForegroundService: () => Promise<boolean>;
 };
 export default ReactNativeForegroundService;
+export { ForegroundServiceType };

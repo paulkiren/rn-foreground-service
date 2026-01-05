@@ -4,6 +4,8 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Handler;
@@ -79,7 +81,19 @@ public class ForegroundService extends Service {
                 .getInstance(getApplicationContext())
                 .buildNotification(getApplicationContext(), notificationConfig);
 
-            startForeground(id, notification);
+            // Android 14+ requires service type parameter
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // API 34+ (Android 14+)
+                int serviceType = getServiceType(notificationConfig);
+                startForeground(id, notification, serviceType);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // API 29+ (Android 10+) - service type support added but not required
+                int serviceType = getServiceType(notificationConfig);
+                startForeground(id, notification, serviceType);
+            } else {
+                // API 28 and below - no service type parameter
+                startForeground(id, notification);
+            }
 
             running += 1;
 
@@ -91,6 +105,65 @@ public class ForegroundService extends Service {
         catch (Exception e) {
             Log.e("ForegroundService", "Failed to start service: " + e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Maps service type string from JavaScript to Android ServiceInfo constant
+     * @param config Notification configuration bundle from JavaScript
+     * @return ServiceInfo constant for the specified type, defaults to DATA_SYNC
+     */
+    private int getServiceType(Bundle config) {
+        if (config == null || !config.containsKey("serviceType")) {
+            // Default to dataSync if not specified
+            return ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
+        }
+
+        String serviceType = config.getString("serviceType", "dataSync");
+
+        switch (serviceType.toLowerCase()) {
+            case "camera":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA;
+
+            case "connecteddevice":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
+
+            case "datasync":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
+
+            case "health":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH;
+
+            case "location":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
+
+            case "mediaplayback":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
+
+            case "mediaprojection":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
+
+            case "microphone":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+
+            case "phonecall":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
+
+            case "remotemessaging":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING;
+
+            case "shortservice":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE;
+
+            case "specialuse":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
+
+            case "systemexempted":
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED;
+
+            default:
+                Log.w("ForegroundService", "Unknown service type: " + serviceType + ", defaulting to dataSync");
+                return ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
         }
     }
     public  Bundle taskConfig;
