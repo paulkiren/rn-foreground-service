@@ -45,23 +45,49 @@ yarn add @kirenpaul/rn-foreground-service
 
 The postinstall script will automatically configure your Android files, but you may need to verify the setup manually.
 
+## 🔴 Important: Android 14+ Requirements
+
+Starting with **Android 14 (API 34)**, foreground services have new requirements. This library is compatible with Android 14+, but you **must** complete the setup steps below.
+
+### What Changed?
+- ✅ Service declarations with `foregroundServiceType` (auto-configured by postinstall)
+- ❌ Type-specific permissions (you must add these)
+- ❌ Runtime notification permission on Android 13+ (you must request this)
+
 ## Setup
 
 ### 1. AndroidManifest.xml
 
-Add the required permissions and service declarations to `android/app/src/main/AndroidManifest.xml`:
+The postinstall script automatically adds service declarations, but you **must add these permissions** to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <manifest
   xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.your.app"
 >
-  <!-- Required Permissions -->
+  <!-- ✅ REQUIRED: Basic Permissions -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+  <!-- ✅ REQUIRED: Android 13+ Notification Permission -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!-- ✅ REQUIRED: Android 14+ Foreground Service Type Permission -->
+  <!-- Add the permission(s) that match your use case: -->
+
+  <!-- For data sync, file operations, network requests -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+  <!-- For location tracking (GPS, geofencing) -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+  <!-- For audio/video playback -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+  <!-- See "Service Types" section below for all available types -->
+
   <application>
-    <!-- Notification Channel Configuration -->
+    <!-- Notification Channel Configuration (optional, can customize) -->
     <meta-data
       android:name="com.supersami.foregroundservice.notification_channel_name"
       android:value="Sticky Title"
@@ -75,12 +101,19 @@ Add the required permissions and service declarations to `android/app/src/main/A
       android:resource="@color/blue"
     />
 
-    <!-- Service Declarations -->
-    <service android:name="com.supersami.foregroundservice.ForegroundService" />
-    <service android:name="com.supersami.foregroundservice.ForegroundServiceTask" />
+    <!-- Service Declarations (auto-added by postinstall script) -->
+    <service
+        android:name="com.supersami.foregroundservice.ForegroundService"
+        android:foregroundServiceType="dataSync|location|mediaPlayback"
+        android:exported="false" />
+    <service
+        android:name="com.supersami.foregroundservice.ForegroundServiceTask"
+        android:exported="false" />
   </application>
 </manifest>
 ```
+
+**Note:** The postinstall script configures services with `dataSync|location|mediaPlayback` types by default. If you need a different type (like `camera` or `microphone`), manually edit the service declaration.
 
 ### 2. MainActivity.java
 
@@ -155,6 +188,70 @@ Create or update `android/app/src/main/res/values/colors.xml`:
     <item>@color/blue</item>
   </integer-array>
 </resources>
+```
+
+### 4. Request Runtime Permissions (Android 13+)
+
+**Critical:** On Android 13+, you must request the `POST_NOTIFICATIONS` permission at runtime before starting the service:
+
+```javascript
+import { PermissionsAndroid, Platform } from 'react-native';
+import ReactNativeForegroundService from '@kirenpaul/rn-foreground-service';
+
+async function requestNotificationPermission() {
+  if (Platform.OS === 'android') {
+    if (Platform.Version >= 33) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        {
+          title: 'Notification Permission',
+          message: 'This app needs notification permission to show service status.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Notification permission denied');
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Use before starting service
+async function startMyService() {
+  const hasPermission = await requestNotificationPermission();
+
+  if (!hasPermission) {
+    console.log('Cannot start service without notification permission');
+    return;
+  }
+
+  // Now safe to start the service
+  await ReactNativeForegroundService.start({
+    id: 144,
+    title: 'Service Running',
+    message: 'Performing background tasks...',
+  });
+}
+```
+
+### 5. Update build.gradle (Android 14+)
+
+Ensure your app targets Android 14 or higher. Update `android/app/build.gradle`:
+
+```gradle
+android {
+    compileSdkVersion 34
+
+    defaultConfig {
+        targetSdkVersion 34
+        // ... other config
+    }
+}
 ```
 
 ## Usage
